@@ -1,0 +1,12 @@
+{
+  "name": "forge",
+  "owner": { "name": "Codsworth" },
+  "plugins": [
+    {
+      "name": "forge",
+      "source": "./",
+      "description": "Codebase-aware specification engine with GSD-style research + Lisa-style interview. Forge plans. Foundry builds.",
+      "version": "1.0.0"
+    }
+  ]
+}
