@@ -1,12 +1,20 @@
 {
   "name": "forge",
-  "owner": { "name": "Codsworth" },
+  "owner": {
+    "name": "Codsworth"
+  },
+  "metadata": {
+    "description": "Codebase-aware specification engine for Claude Code"
+  },
   "plugins": [
     {
       "name": "forge",
       "source": "./",
       "description": "Codebase-aware specification engine with GSD-style research + Lisa-style interview. Forge plans. Foundry builds.",
-      "version": "1.0.0"
+      "version": "1.0.0",
+      "author": {
+        "name": "Codsworth"
+      }
     }
   ]
 }
