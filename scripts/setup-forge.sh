@@ -14,6 +14,7 @@ MAX_QUESTIONS=0  # Unlimited by default
 NO_SURVEY=false
 FIRST_PRINCIPLES=false
 FOCUS_DIRS=""
+USER_PROMPT=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -30,7 +31,8 @@ ARGUMENTS:
   FEATURE_NAME    Name of the feature to spec out (required)
 
 OPTIONS:
-  --context <file>      Initial context file (PRD, requirements, GSD research, etc.)
+  --prompt <text>       Tell forge what you want (e.g., "refine this spec deeper", "add error handling")
+  --context <file>      Initial context file (PRD, requirements, spec to refine, etc.)
   --output-dir <dir>    Output directory for specs (default: docs/specs)
   --max-questions <n>   Maximum question rounds (default: unlimited)
   --no-survey           Skip codebase survey (for greenfield/empty projects)
@@ -55,6 +57,8 @@ EXAMPLES:
   /forge:plan "user authentication"
   /forge:plan "payment processing" --context docs/PRD.md
   /forge:plan "search feature" --focus src/search,src/api
+  /forge:plan airgap-e2e --context docs/specs/airgap.md --prompt "refine this spec deeper"
+  /forge:plan auth-system --context docs/PRD.md --prompt "focus on error handling and edge cases"
   /forge:plan "new dashboard" --first-principles
   /forge:plan "greenfield api" --no-survey
 
@@ -92,6 +96,10 @@ HELP_EOF
     --first-principles)
       FIRST_PRINCIPLES=true
       shift
+      ;;
+    --prompt)
+      USER_PROMPT="$2"
+      shift 2
       ;;
     --focus)
       FOCUS_DIRS="$2"
@@ -901,8 +909,27 @@ cat >> "$PROMPT_FILE" << SESSION_EOF
 - **Source File Count:** $SRC_COUNT
 - **Survey Mode:** $(if [[ "$NO_SURVEY" == "true" ]]; then echo "SKIPPED"; else echo "ACTIVE"; fi)
 - **Focus Directories:** ${FOCUS_DIRS:-"entire project"}
+$(if [[ -n "$USER_PROMPT" ]]; then echo "- **User Intent:** $USER_PROMPT"; fi)
 
 ---
+
+$(if [[ -n "$USER_PROMPT" ]]; then
+cat << INTENT_EOF
+## USER INTENT
+
+The user told you what they want: **"$USER_PROMPT"**
+
+This is your primary directive. Everything — the survey focus, the interview questions, the spec output —
+should serve this intent. For example:
+- "refine this spec deeper" → read the context file as an existing spec, probe its gaps, produce a more detailed version
+- "focus on error handling" → survey for error patterns, ask about failure modes, spec every error case
+- "add observability" → survey for logging/metrics, ask about SLOs, spec monitoring requirements
+- "break this into smaller pieces" → analyze the context for decomposition boundaries
+
+Adapt your approach to match what the user asked for.
+
+INTENT_EOF
+fi)
 
 ## BEGIN NOW
 
@@ -948,6 +975,7 @@ context_file: "$CONTEXT_FILE"
 no_survey: $NO_SURVEY
 first_principles: $FIRST_PRINCIPLES
 focus_dirs: "$FOCUS_DIRS"
+user_prompt: "$USER_PROMPT"
 ---
 
 $INTERVIEW_PROMPT
@@ -1094,6 +1122,9 @@ else
 fi
 if [[ "$FIRST_PRINCIPLES" == "true" ]]; then
   echo "Mode: First Principles (challenges assumptions first)"
+fi
+if [[ -n "$USER_PROMPT" ]]; then
+  echo "Intent: $USER_PROMPT"
 fi
 echo ""
 echo "Forge researches first, then interviews. Say \"done\" when finished."
