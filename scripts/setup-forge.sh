@@ -281,16 +281,35 @@ fi
 # =========================================================================
 
 if [[ "$NO_SURVEY" == "false" ]]; then
-cat >> "$PROMPT_FILE" << 'SYNTH_PROMPT_EOF'
+
+# Build context block for R1 synthesis
+SYNTH_CONTEXT=""
+if [[ -n "$CONTEXT_CONTENT" ]]; then
+  SYNTH_CONTEXT="
+### Feature Context
+
+The user provided a context file describing what they want to build. Use this to PRIORITIZE
+your synthesis — highlight the parts of the codebase most relevant to this feature and
+deprioritize areas that don't apply.
+
+--- FEATURE CONTEXT ---
+$(echo "$CONTEXT_CONTENT" | head -300)
+--- END FEATURE CONTEXT ---
+"
+fi
+
+cat >> "$PROMPT_FILE" << SYNTH_PROMPT_EOF
 
 ## PHASE R1: SYNTHESIZE — Build Codebase Reality Document
 
 Read all 4 survey files and synthesize them into a single **codebase reality document**. Write this to the reality path specified in SESSION INFORMATION below.
+$SYNTH_CONTEXT
+**Key instruction:** Do NOT just concatenate the survey files. Synthesize them — cross-reference findings, resolve contradictions, and prioritize information relevant to the feature being built ("$FEATURE_NAME").
 
 Structure the reality document as:
 
-```markdown
-# Codebase Reality: {FEATURE_NAME}
+\`\`\`markdown
+# Codebase Reality: $FEATURE_NAME
 
 ## Architecture Summary
 - How the app is organized (layers, packages, communication patterns)
@@ -322,7 +341,7 @@ Structure the reality document as:
 - Missing test coverage
 - Tech debt that affects this feature area
 - Performance considerations
-```
+\`\`\`
 
 This document is the foundation for every interview question. Every question you ask in R2 should reference specific findings from this document.
 
