@@ -380,13 +380,24 @@ DO NOT ask basic questions the codebase already answers. Probe decisions, trade-
 - "Your test coverage for auth is integration-heavy but the API layer is mostly unit tests — which approach for the new feature?"
 - "The existing API uses REST but I see a GraphQL schema file — is this feature REST or are you migrating?"
 
-#### 4. CONTINUE UNTIL USER SAYS STOP
+#### 4. BE DELIBERATE, NOT FAST
+This is NOT a speed run. You are building a comprehensive specification that will drive weeks of
+implementation. Take time to:
+- Explore each domain thoroughly before moving to the next
+- Ask follow-up questions when answers are vague ("what specifically happens when X?")
+- Circle back to earlier topics when new information changes the picture
+- Validate your understanding by restating what you heard before moving on
+
+Do NOT try to cover everything in 3-5 questions. A good forge interview is 10-20+ questions across
+multiple rounds. The spec quality directly correlates with interview depth.
+
+#### 5. CONTINUE UNTIL USER SAYS STOP
 The interview continues until the user explicitly says "done", "finalize", "finished", or similar. Do NOT stop after one round. After each answer, immediately ask the next question using AskUserQuestion.
 
-#### 5. MAINTAIN RUNNING DRAFT
+#### 6. MAINTAIN RUNNING DRAFT
 After every 2-3 questions, update the draft spec file with accumulated information using the Write tool. This ensures nothing is lost if the session is interrupted.
 
-#### 6. BE ADAPTIVE
+#### 7. BE ADAPTIVE
 Base your next question on previous answers. If the user mentions something interesting, probe deeper. Do not follow a rigid script. Build on what you learn.
 
 ### DOMAIN DETECTION
@@ -559,6 +570,15 @@ The spec MUST use these ID schemes for foundry traceability:
 - **AC-NNN**: Acceptance Criteria (nested under US/FR)
 - **OT-NNN**: Observable Truths (per domain, min 5 each — foundry verification targets)
 
+### SPEC PHILOSOPHY
+
+You know this codebase. The spec should reflect that. Do NOT generate a generic spec that could
+apply to any project. Every section should reference specific files, functions, patterns, and
+conventions discovered during the survey. A developer reading this spec should be able to start
+coding immediately without exploring the codebase themselves.
+
+Take your time. A thorough spec prevents weeks of back-and-forth during implementation.
+
 ### SPEC TEMPLATE
 
 ```markdown
@@ -576,7 +596,9 @@ The spec MUST use these ID schemes for foundry traceability:
 - [Explicit list from interview]
 
 ### Out of Scope
-- [Explicit list from interview]
+- [Explicit list from interview — be specific about what is NOT included]
+
+---
 
 ## User Stories
 
@@ -584,83 +606,182 @@ The spec MUST use these ID schemes for foundry traceability:
 **As a** [user type], **I want** [action], **so that** [benefit].
 
 **Acceptance Criteria:**
-- AC-001: [Specific, testable criterion]
-- AC-002: [Another testable criterion]
+- AC-001: [Specific, testable criterion — e.g., "POST /api/users returns 201 with Location header"]
+- AC-002: [Error case — e.g., "Duplicate email returns 409 with error body {code: 'EMAIL_EXISTS'}"]
+- AC-003: [Edge case — e.g., "Password under 8 chars returns 400 with validation details"]
 
 **Codebase Integration:**
-- Extends: [specific file:function from survey]
-- Follows pattern: [specific pattern from survey]
-- New files: [proposed locations based on project structure]
+- Extends: `services/auth.go:AuthService.CreateUser` (line ~45) — add permission check
+- Follows pattern: `handlers/users.go:HandleCreateUser` — validate → service → respond
+- New files: `services/permissions.go` (in `services/` alongside existing service files)
+- Modifies: `models/user.go:User` struct — add `Permissions []string` field
 
 ### US-002: ...
 
+---
+
 ## Functional Requirements
 
-- FR-001: [Requirement] — Maps to US-001
-- FR-002: [Requirement] — Maps to US-001, US-002
+- FR-001: [Requirement with specific behavior] — Maps to US-001
+- FR-002: [Requirement with specific behavior] — Maps to US-001, US-002
 
 ## Non-Functional Requirements
 
-- NFR-001: [Performance/security/scalability requirement with specific metric]
+- NFR-001: [Requirement with measurable metric — e.g., "API response < 200ms p95"]
 - NFR-002: ...
+
+---
 
 ## Technical Design
 
-### Data Model
-[Schema changes referencing EXISTING models from survey]
+### Data Model Changes
+
+**Current state** (from survey):
+[Show the EXISTING model/schema that will be modified, with file path]
+
+**Proposed changes:**
+[Show exactly what fields/tables/types are added/modified/removed]
+[Include migration strategy if schema changes — additive only? breaking?]
 
 ### API Design
-[Endpoints following EXISTING patterns from survey]
+
+**New endpoints:**
+| Method | Path | Handler | Request Body | Response | Auth |
+|--------|------|---------|-------------|----------|------|
+| POST   | /api/... | `handlers/...` | `{...}` | 201: `{...}` | Required |
+
+**Modified endpoints:**
+[Which existing endpoints change and how — reference current handler file paths]
+
+**Pattern to follow:**
+[Reference a specific existing endpoint as the template — e.g., "Follow handlers/users.go:HandleCreateUser"]
 
 ### Architecture
-[Component design following EXISTING architecture from survey]
+
+**Component diagram:**
+[How new components fit into existing architecture — reference actual packages]
+
+**Dependency flow:**
+[What depends on new code, what new code depends on — reference specific imports]
+
+### Error Handling
+
+**Pattern to follow** (from survey):
+[Reference the actual error handling pattern in the codebase — e.g., "Wrap with fmt.Errorf like services/users.go:L34"]
+
+**Error cases for this feature:**
+| Scenario | HTTP Status | Error Code | Message |
+|----------|-------------|------------|---------|
+| ... | 400 | VALIDATION_ERROR | "..." |
+| ... | 409 | CONFLICT | "..." |
+
+---
+
+## File Change Map
+
+Exactly which files are touched and what happens in each:
+
+### Modified Files
+| File | What Changes | Lines/Functions Affected |
+|------|-------------|------------------------|
+| `models/user.go` | Add Permissions field to User struct | `User` struct (~L15) |
+| `services/auth.go` | Add permission check to CreateUser | `CreateUser()` (~L45) |
+| ... | ... | ... |
+
+### New Files
+| File | Purpose | Pattern Source |
+|------|---------|---------------|
+| `services/permissions.go` | Permission CRUD service | Follows `services/users.go` pattern |
+| `handlers/permissions.go` | Permission API handlers | Follows `handlers/users.go` pattern |
+| ... | ... | ... |
+
+---
 
 ## Observable Truths
 
 These are verification targets for foundry's INSPECT/ASSAY phases.
+Each must be independently verifiable by reading code or running a test.
 
 ### Domain: [domain-name]
-- OT-001: [User-perspective verifiable statement]
-- OT-002: [Error case verifiable statement]
-- OT-003: [Edge case verifiable statement]
-- OT-004: [Integration verifiable statement]
-- OT-005: [Performance verifiable statement]
+- OT-001: [User-perspective verifiable statement — e.g., "A user with 'admin' role can access GET /api/admin"]
+- OT-002: [Error case — e.g., "A user without 'admin' role receives 403 from GET /api/admin"]
+- OT-003: [Edge case — e.g., "A user with empty permissions array can only access public endpoints"]
+- OT-004: [Integration — e.g., "Creating a user with POST /api/users assigns default permissions"]
+- OT-005: [Data — e.g., "Permissions are stored in the users table, not a separate join table"]
 
 ### Domain: [domain-name-2]
 - OT-006: ...
 
+---
+
 ## Implementation Phases
 
 ### Phase 1: Foundation
-- [ ] [Task referencing specific files/functions]
-- **Verification:** `[command]`
+- [ ] [Specific task — e.g., "Add Permissions field to User struct in models/user.go"]
+- [ ] [Specific task — e.g., "Create migration 003_add_permissions.sql"]
+- [ ] [Specific task — e.g., "Create services/permissions.go with CRUD methods"]
+- **Verification:** `go build ./...` and `go test ./models/... ./services/...`
+- **Depends on:** nothing (foundation)
 
 ### Phase 2: Core
-- [ ] [Task referencing specific files/functions]
-- **Verification:** `[command]`
+- [ ] [Specific task — e.g., "Create handlers/permissions.go following handlers/users.go pattern"]
+- [ ] [Specific task — e.g., "Register routes in routes.go after existing /api/users routes"]
+- [ ] [Specific task — e.g., "Add permission middleware to protected routes"]
+- **Verification:** `go test ./handlers/... && curl -X POST localhost:8080/api/permissions`
+- **Depends on:** Phase 1
 
-### Phase 3: Integration
-- [ ] [Task referencing specific files/functions]
-- **Verification:** `[command]`
+### Phase 3: Integration & Polish
+- [ ] [Specific task — e.g., "Update CreateUser to assign default permissions"]
+- [ ] [Specific task — e.g., "Add permission checks to existing admin endpoints"]
+- [ ] [Specific task — e.g., "Add integration tests for full permission flow"]
+- **Verification:** `go test ./... -count=1` (full suite)
+- **Depends on:** Phase 2
+
+---
 
 ## Test Strategy
-[Based on EXISTING test patterns discovered in survey]
-- Unit tests: follow pattern in [test file from survey]
-- Integration tests: [approach based on existing infra]
-- Coverage target: [based on existing project standards]
+
+**Existing test patterns** (from survey):
+- Unit tests: [e.g., "Table-driven tests in services/users_test.go — follow this pattern"]
+- Integration tests: [e.g., "Uses testcontainers for Postgres in tests/integration/"]
+- Fixtures: [e.g., "Test data in testdata/ directory, loaded via helpers.LoadFixture()"]
+
+**Tests to write for this feature:**
+| Test File | Tests | Type |
+|-----------|-------|------|
+| `services/permissions_test.go` | CRUD operations, validation, edge cases | Unit |
+| `handlers/permissions_test.go` | HTTP status codes, auth, validation | Unit |
+| `tests/integration/permissions_test.go` | Full flow with real DB | Integration |
+
+**Coverage target:** [Based on existing project standards from survey]
+
+---
 
 ## Codebase References
-[Key files, functions, patterns discovered during survey that inform this spec]
+
+Key files, functions, and patterns from the survey that inform this spec:
+
+| Reference | Why It Matters |
+|-----------|---------------|
+| `models/user.go:User` | Struct being extended with permissions |
+| `handlers/users.go:HandleCreateUser` | Pattern template for new handlers |
+| `services/users.go:UserService` | Pattern template for new service |
+| `middleware/auth.go:RequireAuth` | Where permission checks plug in |
+| `tests/integration/users_test.go` | Pattern template for integration tests |
 ```
 
 ### SPEC WRITING RULES
 
-1. Every US MUST have 2+ testable ACs
-2. Every AC must be verifiable (not "works correctly" — specific behavior)
-3. Every "Codebase Integration" section must reference REAL files from the survey
-4. Observable Truths must be user-perspective and verifiable
-5. Implementation phases must reference specific files/functions, not abstract tasks
-6. Test strategy must reference actual test patterns found in the codebase
+1. Every US MUST have 2+ testable ACs including at least one error/edge case
+2. Every AC must be verifiable (not "works correctly" — specific HTTP status, specific behavior)
+3. Every "Codebase Integration" section must reference REAL files with line numbers from the survey
+4. The File Change Map must list EVERY file that will be modified or created
+5. Observable Truths must be user-perspective, verifiable, and include error cases
+6. Implementation phases must reference specific files/functions with verification commands
+7. Test strategy must reference actual test patterns and name specific test files to create
+8. Technical Design must show current state AND proposed changes (not just proposed)
+9. Error handling must follow the project's existing pattern (reference specific examples)
+10. Do NOT use placeholder text — every example in the spec should be real and specific
 
 SPEC_PROMPT_EOF
 
