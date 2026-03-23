@@ -160,7 +160,33 @@ PROMPT_FILE=$(mktemp)
 # =========================================================================
 
 if [[ "$NO_SURVEY" == "false" ]]; then
-cat > "$PROMPT_FILE" << 'SURVEY_PROMPT_EOF'
+
+# Build context-aware scope guidance for survey agents
+SCOPE_GUIDANCE=""
+if [[ -n "$CONTEXT_CONTENT" ]]; then
+  # Extract a summary of the context for agents (first 200 lines max to avoid bloat)
+  CONTEXT_SUMMARY=$(echo "$CONTEXT_CONTENT" | head -200)
+  SCOPE_GUIDANCE="
+SCOPE GUIDANCE — A context file was provided. Focus your exploration on the areas
+of the codebase RELEVANT to this context. Do not map the entire repo — focus on
+what matters for this feature/spec:
+
+--- CONTEXT SUMMARY ---
+$CONTEXT_SUMMARY
+--- END CONTEXT SUMMARY ---
+
+Explore code related to the above. Skip unrelated packages/modules."
+fi
+
+if [[ -n "$FOCUS_DIRS" ]]; then
+  SCOPE_GUIDANCE="$SCOPE_GUIDANCE
+
+FOCUS DIRECTORIES: $FOCUS_DIRS
+Prioritize these directories. You may look outside them for dependencies and patterns,
+but spend most of your time within these paths."
+fi
+
+cat > "$PROMPT_FILE" << SURVEY_PROMPT_EOF
 # Forge Specification Engine
 
 You are conducting a codebase-aware specification interview. Unlike a standard interview, you RESEARCH THE CODEBASE FIRST, then ask smart questions grounded in what you found.
@@ -169,65 +195,70 @@ You are conducting a codebase-aware specification interview. Unlike a standard i
 
 Before asking the user a single question, you must deeply explore the codebase. Spawn **4 parallel Explore agents** to investigate different dimensions of the codebase.
 
-**IMPORTANT:** Use the Agent tool with `subagent_type: "Explore"` for each. All 4 agents should be spawned in a SINGLE message (parallel execution).
+**IMPORTANT:** Use the Agent tool with \`subagent_type: "Explore"\` for each. All 4 agents should be spawned in a SINGLE message (parallel execution).
+$SCOPE_GUIDANCE
 
 ### Agent 1: ARCHITECT
-```
-Explore the overall architecture of this codebase. Map:
+\`\`\`
+Explore the architecture of this codebase$(if [[ -n "$SCOPE_GUIDANCE" ]]; then echo " relevant to the feature described in the SCOPE GUIDANCE below"; fi). Map:
 - Package/module structure and layer boundaries
 - Design patterns in use (MVC, hexagonal, microservices, etc.)
 - How components communicate (imports, events, APIs, queues)
 - Entry points (main files, handler registrations, route definitions)
 - Configuration management (how config reaches code)
+$SCOPE_GUIDANCE
 
-Write your findings as structured markdown to: {SURVEY_DIR}/architecture.md
+Write your findings as structured markdown to: $SURVEY_DIR/architecture.md
 
 Format: Use headers for each area. Include specific file paths. Note patterns with examples.
-```
+\`\`\`
 
 ### Agent 2: DATA
-```
-Explore data models, storage, and data flow in this codebase. Map:
+\`\`\`
+Explore data models, storage, and data flow in this codebase$(if [[ -n "$SCOPE_GUIDANCE" ]]; then echo " relevant to the feature described in the SCOPE GUIDANCE below"; fi). Map:
 - Database models/schemas (ORMs, migrations, raw SQL)
 - Data structures and types (structs, interfaces, type definitions)
 - Data access patterns (repositories, DAOs, direct queries)
 - Data flow: input → validation → processing → storage → response
 - External data sources (APIs, files, caches, queues)
+$SCOPE_GUIDANCE
 
-Write your findings as structured markdown to: {SURVEY_DIR}/data.md
+Write your findings as structured markdown to: $SURVEY_DIR/data.md
 
 Format: Use headers for each area. Include specific file paths and type names.
-```
+\`\`\`
 
 ### Agent 3: SURFACE
-```
-Explore the public surface area of this codebase. Map:
+\`\`\`
+Explore the public surface area of this codebase$(if [[ -n "$SCOPE_GUIDANCE" ]]; then echo " relevant to the feature described in the SCOPE GUIDANCE below"; fi). Map:
 - API endpoints/routes (HTTP methods, paths, handlers)
 - UI components/pages (if frontend exists)
 - CLI commands/flags (if CLI exists)
 - Exported functions and public interfaces
 - Extension points (where new features plug in)
 - Authentication/authorization patterns
+$SCOPE_GUIDANCE
 
-Write your findings as structured markdown to: {SURVEY_DIR}/surface.md
+Write your findings as structured markdown to: $SURVEY_DIR/surface.md
 
 Format: Use headers for each area. Include specific file paths and function names.
-```
+\`\`\`
 
 ### Agent 4: INFRA
-```
-Explore the infrastructure, testing, and tooling in this codebase. Map:
+\`\`\`
+Explore the infrastructure, testing, and tooling in this codebase$(if [[ -n "$SCOPE_GUIDANCE" ]]; then echo " relevant to the feature described in the SCOPE GUIDANCE below"; fi). Map:
 - Test patterns (unit, integration, e2e — frameworks, fixtures, helpers)
 - CI/CD configuration (pipelines, quality gates)
 - Build system and dependencies (package manager, build tools)
 - Environment configuration (env vars, config files, secrets management)
 - Linting/formatting tools and conventions
 - Deployment patterns (Docker, K8s, serverless, etc.)
+$SCOPE_GUIDANCE
 
-Write your findings as structured markdown to: {SURVEY_DIR}/infra.md
+Write your findings as structured markdown to: $SURVEY_DIR/infra.md
 
 Format: Use headers for each area. Include specific file paths and tool names.
-```
+\`\`\`
 
 **After all 4 agents complete**, read all 4 survey files and proceed to PHASE R1.
 
